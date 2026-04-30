@@ -1,19 +1,59 @@
-import React from 'react';
-import { Box } from '@mui/material';
-import Sidebar, { SIDEBAR_WIDTH } from './Sidebar';
+import React, { useState } from 'react';
+import {
+  Box,
+  IconButton,
+  AppBar,
+  Toolbar,
+  Typography,
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import Sidebar from './Sidebar';
 
 export default function MainLayout({ children }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar />
+    <Box sx={{ display: 'flex' }}>
+      
+      {/* Top Navbar */}
+      <AppBar
+        position="fixed"
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          background: '#0B1B2B', // your BRAND.navy
+        }}
+      >
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+
+          <Typography variant="h6">
+            Jayshree Decor
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      {/* Sidebar */}
+      <Sidebar mobileOpen={mobileOpen} onClose={handleDrawerToggle} />
+
+      {/* Main Content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          // ml: `${SIDEBAR_WIDTH}px`,
           p: { xs: 2, md: 3.5 },
-          minHeight: '100vh',
-          background: 'background.default',
+          width: '100%',
+          mt: { xs: 7, md: 0 }, // important for mobile spacing
         }}
       >
         {children}
