@@ -1,134 +1,214 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { getInvoices, deleteInvoice, updateStatus } from '../utils/api';
+import React, { useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Box, Card, CardContent, Button, TextField, Select, MenuItem,
+  FormControl, InputLabel, Table, TableHead, TableBody, TableRow,
+  TableCell, TableContainer, TablePagination, IconButton, Tooltip,
+  Alert, Skeleton, InputAdornment, Stack, Typography,
+} from '@mui/material';
+import SearchIcon       from '@mui/icons-material/Search';
+import VisibilityIcon   from '@mui/icons-material/Visibility';
+import EditIcon         from '@mui/icons-material/Edit';
+import DeleteIcon       from '@mui/icons-material/DeleteOutline';
+import AddIcon          from '@mui/icons-material/Add';
 
-const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+import { PageHeader, StatusChip, ConfirmDialog } from '../components/common';
+import { useInvoices }                           from '../hooks/useInvoices';
+import { deleteInvoice, updateStatus }           from '../utils/api';
+import { fmtCurrency, fmtDate }                 from '../utils/helpers';
 
 export default function InvoiceList() {
-  const [invoices, setInvoices] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [search, setSearch] = useState('');
+  const navigate = useNavigate();
+  const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
+  const [page, setPage]               = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [actionError, setActionError] = useState('');
 
-  const load = () => {
-    getInvoices()
-      .then(r => { setInvoices(r.data); setFiltered(r.data); })
-      .finally(() => setLoading(false));
-  };
+  const params = useCallback(() => {
+    const p = { page: page + 1, limit: rowsPerPage, sort: 'createdAt', order: 'DESC' };
+    if (statusFilter !== 'all') p.status = statusFilter;
+    if (search.trim()) p.search = search.trim();
+    return p;
+  }, [page, rowsPerPage, statusFilter, search]);
 
-  useEffect(() => { load(); }, []);
+  const { data, loading, error, reload } = useInvoices(params());
+  const { invoices = [], pagination = {} } = data;
 
-  useEffect(() => {
-    let data = invoices;
-    if (statusFilter !== 'all') data = data.filter(i => i.status === statusFilter);
-    if (search) {
-      const q = search.toLowerCase();
-      data = data.filter(i =>
-        i.invoice_number.toLowerCase().includes(q) ||
-        i.client_name.toLowerCase().includes(q) ||
-        i.event_type?.toLowerCase().includes(q)
-      );
+  const handleStatusChange = async (id, status) => {
+    try {
+      await updateStatus(id, status);
+      reload();
+    } catch (e) {
+      setActionError(e.message);
     }
-    setFiltered(data);
-  }, [search, statusFilter, invoices]);
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this invoice?')) return;
-    await deleteInvoice(id);
-    load();
   };
 
-  const handleStatus = async (id, status) => {
-    await updateStatus(id, status);
-    load();
+  const handleDelete = async () => {
+    try {
+      await deleteInvoice(deleteTarget.id);
+      setDeleteTarget(null);
+      reload();
+    } catch (e) {
+      setActionError(e.message);
+      setDeleteTarget(null);
+    }
   };
 
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <h1>All Invoices</h1>
-          <p>{filtered.length} invoice{filtered.length !== 1 ? 's' : ''} found</p>
-        </div>
-        <Link to="/invoices/new" className="btn btn-primary">+ New Invoice</Link>
-      </div>
+    <Box>
+      <PageHeader
+        title="All Invoices"
+        subtitle={`${pagination.total || 0} total invoices`}
+        action={
+          <Button component={Link} to="/invoices/new" variant="contained" color="primary" startIcon={<AddIcon />}>
+            New Invoice
+          </Button>
+        }
+      />
 
-      <div className="card">
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-          <input
-            placeholder="Search by party name, invoice #, event..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, border: '1px solid #ddd', borderRadius: 8, padding: '9px 12px', fontSize: 14 }}
+      {(error || actionError) && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setActionError('')}>
+          {error || actionError}
+        </Alert>
+      )}
+
+      <Card>
+        <CardContent>
+          {/* Filters */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
+            <TextField
+              placeholder="Search party name, invoice #, event..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              sx={{ flex: 1 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <FormControl sx={{ minWidth: 160 }} size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                label="Status"
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              >
+                <MenuItem value="all">All Status</MenuItem>
+                <MenuItem value="paid">Paid</MenuItem>
+                <MenuItem value="unpaid">Unpaid</MenuItem>
+                <MenuItem value="partial">Partial</MenuItem>
+                <MenuItem value="cancelled">Cancelled</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+
+          {/* Table */}
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Invoice #</TableCell>
+                  <TableCell>Party Name</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Event</TableCell>
+                  <TableCell>Date</TableCell>
+                  <TableCell align="right">Amount</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading
+                  ? [...Array(6)].map((_, i) => (
+                      <TableRow key={i}>
+                        {[...Array(8)].map((__, j) => (
+                          <TableCell key={j}><Skeleton /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  : invoices.length === 0
+                  ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center" sx={{ py: 5 }}>
+                        <Typography color="text.secondary">No invoices found.</Typography>
+                      </TableCell>
+                    </TableRow>
+                  )
+                  : invoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={700}>{inv.invoiceNumber}</Typography>
+                      </TableCell>
+                      <TableCell>{inv.client?.name}</TableCell>
+                      <TableCell sx={{ color: 'text.secondary' }}>{inv.client?.phone || '—'}</TableCell>
+                      <TableCell>{inv.eventType}</TableCell>
+                      <TableCell>{fmtDate(inv.invoiceDate)}</TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight={700}>{fmtCurrency(inv.grandTotal)}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={inv.status}
+                          size="small"
+                          onChange={(e) => handleStatusChange(inv.id, e.target.value)}
+                          sx={{ fontSize: 12, fontWeight: 600, minWidth: 110 }}
+                        >
+                          <MenuItem value="unpaid">Unpaid</MenuItem>
+                          <MenuItem value="paid">Paid</MenuItem>
+                          <MenuItem value="partial">Partial</MenuItem>
+                          <MenuItem value="cancelled">Cancelled</MenuItem>
+                        </Select>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={0.5} justifyContent="center">
+                          <Tooltip title="View">
+                            <IconButton size="small" onClick={() => navigate(`/invoices/${inv.id}`)}>
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit">
+                            <IconButton size="small" onClick={() => navigate(`/invoices/${inv.id}/edit`)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(inv)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <TablePagination
+            component="div"
+            count={pagination.total || 0}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
+            rowsPerPageOptions={[10, 15, 25, 50]}
           />
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            style={{ border: '1px solid #ddd', borderRadius: 8, padding: '9px 12px', fontSize: 14 }}
-          >
-            <option value="all">All Status</option>
-            <option value="paid">Paid</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
+        </CardContent>
+      </Card>
 
-        {loading ? (
-          <p style={{ textAlign: 'center', color: '#888', padding: 24 }}>Loading...</p>
-        ) : filtered.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#888', padding: 24 }}>No invoices found.</p>
-        ) : (
-          <table className="invoice-table">
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Party Name</th>
-                <th>Phone</th>
-                <th>Event</th>
-                <th>Invoice Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(inv => (
-                <tr key={inv.id}>
-                  <td style={{ fontWeight: 600, color: '#1a1a2e' }}>{inv.invoice_number}</td>
-                  <td>{inv.client_name}</td>
-                  <td style={{ color: '#888' }}>{inv.client_phone || '-'}</td>
-                  <td>{inv.event_type}</td>
-                  <td>{new Date(inv.invoice_date).toLocaleDateString('en-IN')}</td>
-                  <td style={{ fontWeight: 700 }}>{fmt(inv.grand_total)}</td>
-                  <td>
-                    <select
-                      value={inv.status}
-                      onChange={e => handleStatus(inv.id, e.target.value)}
-                      style={{
-                        border: '1px solid #e0e0e0', borderRadius: 6, padding: '4px 8px', fontSize: 12,
-                        background: inv.status === 'paid' ? '#dcfce7' : inv.status === 'cancelled' ? '#fee2e2' : '#fef3c7',
-                        color: inv.status === 'paid' ? '#16a34a' : inv.status === 'cancelled' ? '#dc2626' : '#d97706',
-                        fontWeight: 600, cursor: 'pointer'
-                      }}
-                    >
-                      <option value="unpaid">Unpaid</option>
-                      <option value="paid">Paid</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <Link to={`/invoices/${inv.id}`} className="btn btn-sm">View</Link>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(inv.id)}>Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Invoice"
+        message={`Are you sure you want to delete invoice ${deleteTarget?.invoiceNumber}? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </Box>
   );
 }
