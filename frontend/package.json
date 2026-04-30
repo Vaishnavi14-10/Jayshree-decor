@@ -1,22 +1,38 @@
 {
   "name": "jayshree-decor-frontend",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "private": true,
   "dependencies": {
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/icons-material": "^6.1.6",
+    "@mui/material": "^6.1.6",
+    "@mui/x-date-pickers": "^7.20.0",
+    "axios": "^1.7.7",
+    "dayjs": "^1.11.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0",
+    "react-router-dom": "^6.27.0",
     "react-scripts": "5.0.1",
-    "react-to-print": "^2.15.1",
-    "axios": "^1.7.3"
+    "react-to-print": "^2.15.1"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "test": "react-scripts test"
   },
   "proxy": "http://localhost:5000",
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version"
+    ]
+  },
+  "devDependencies": {
+    "eslint-plugin-react-hooks": "^7.1.1"
   }
 }
