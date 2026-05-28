@@ -5,6 +5,8 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const path = require('path');
+
 
 const logger = require('./utils/logger');
 const { connectDB } = require('./config/sequelize');
@@ -84,3 +86,12 @@ connectDB().then(() => {
     logger.info(`🚀 Jayshree Decor API running on http://localhost:${PORT} [${NODE_ENV}]`);
   });
 });
+
+
+// Serve React frontend in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../frontend/build')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'));
+  });
+}
