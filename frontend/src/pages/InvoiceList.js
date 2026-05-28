@@ -6,22 +6,24 @@ import {
   TableCell, TableContainer, TablePagination, IconButton, Tooltip,
   Alert, Skeleton, InputAdornment, Stack, Typography,
 } from '@mui/material';
-import SearchIcon       from '@mui/icons-material/Search';
-import VisibilityIcon   from '@mui/icons-material/Visibility';
-import EditIcon         from '@mui/icons-material/Edit';
-import DeleteIcon       from '@mui/icons-material/DeleteOutline';
-import AddIcon          from '@mui/icons-material/Add';
 
-import { PageHeader, StatusChip, ConfirmDialog } from '../components/common';
-import { useInvoices }                           from '../hooks/useInvoices';
-import { deleteInvoice, updateStatus }           from '../utils/api';
-import { fmtCurrency, fmtDate }                 from '../utils/helpers';
+import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import AddIcon from '@mui/icons-material/Add';
+
+import { ConfirmDialog } from '../components/common';
+import { useInvoices } from '../hooks/useInvoices';
+import { deleteInvoice, updateStatus } from '../utils/api';
+import { fmtCurrency, fmtDate } from '../utils/helpers';
 
 export default function InvoiceList() {
   const navigate = useNavigate();
-  const [search, setSearch]           = useState('');
+
+  const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [page, setPage]               = useState(0);
+  const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [actionError, setActionError] = useState('');
@@ -58,15 +60,38 @@ export default function InvoiceList() {
 
   return (
     <Box>
-      <PageHeader
-        title="All Invoices"
-        subtitle={`${pagination.total || 0} total invoices`}
-        action={
-          <Button component={Link} to="/invoices/new" variant="contained" color="primary" startIcon={<AddIcon />}>
-            New Invoice
-          </Button>
-        }
-      />
+
+      {/* ===== Header ===== */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'center' },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={700}>
+            All Invoices
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {pagination.total || 0} total invoices
+          </Typography>
+        </Box>
+
+        <Button
+          component={Link}
+          to="/invoices/new"
+          variant="contained"
+          startIcon={<AddIcon />}
+          fullWidth
+          sx={{ maxWidth: { sm: 200 } }}
+        >
+          New Invoice
+        </Button>
+      </Box>
 
       {(error || actionError) && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setActionError('')}>
@@ -76,29 +101,41 @@ export default function InvoiceList() {
 
       <Card>
         <CardContent>
-          {/* Filters */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
+
+          {/* ===== Filters ===== */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            sx={{ mb: 2.5 }}
+          >
             <TextField
-              placeholder="Search party name, invoice #, event..."
+              placeholder="Search..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              sx={{ flex: 1 }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
+              fullWidth
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                    <SearchIcon fontSize="small" />
                   </InputAdornment>
                 ),
               }}
             />
-            <FormControl sx={{ minWidth: 160 }} size="small">
+
+            <FormControl fullWidth sx={{ maxWidth: { sm: 200 } }}>
               <InputLabel>Status</InputLabel>
               <Select
                 label="Status"
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(0);
+                }}
               >
-                <MenuItem value="all">All Status</MenuItem>
+                <MenuItem value="all">All</MenuItem>
                 <MenuItem value="paid">Paid</MenuItem>
                 <MenuItem value="unpaid">Unpaid</MenuItem>
                 <MenuItem value="partial">Partial</MenuItem>
@@ -107,13 +144,18 @@ export default function InvoiceList() {
             </FormControl>
           </Stack>
 
-          {/* Table */}
-          <TableContainer>
-            <Table>
+          {/* ===== Desktop Table ===== */}
+          <TableContainer
+            sx={{
+              display: { xs: 'none', md: 'block' },
+              overflowX: 'auto',
+            }}
+          >
+            <Table sx={{ minWidth: 800 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Invoice #</TableCell>
-                  <TableCell>Party Name</TableCell>
+                  <TableCell>Party</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Event</TableCell>
                   <TableCell>Date</TableCell>
@@ -122,82 +164,104 @@ export default function InvoiceList() {
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
+
               <TableBody>
-                {loading
-                  ? [...Array(6)].map((_, i) => (
-                      <TableRow key={i}>
-                        {[...Array(8)].map((__, j) => (
-                          <TableCell key={j}><Skeleton /></TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  : invoices.length === 0
-                  ? (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 5 }}>
-                        <Typography color="text.secondary">No invoices found.</Typography>
-                      </TableCell>
+                {loading ? (
+                  [...Array(6)].map((_, i) => (
+                    <TableRow key={i}>
+                      {[...Array(8)].map((__, j) => (
+                        <TableCell key={j}><Skeleton /></TableCell>
+                      ))}
                     </TableRow>
-                  )
-                  : invoices.map((inv) => (
+                  ))
+                ) : invoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center">
+                      No invoices found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  invoices.map((inv) => (
                     <TableRow key={inv.id}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={700}>{inv.invoiceNumber}</Typography>
-                      </TableCell>
+                      <TableCell>{inv.invoiceNumber}</TableCell>
                       <TableCell>{inv.client?.name}</TableCell>
-                      <TableCell sx={{ color: 'text.secondary' }}>{inv.client?.phone || '—'}</TableCell>
+                      <TableCell>{inv.client?.phone || '—'}</TableCell>
                       <TableCell>{inv.eventType}</TableCell>
                       <TableCell>{fmtDate(inv.invoiceDate)}</TableCell>
                       <TableCell align="right">
-                        <Typography variant="body2" fontWeight={700}>{fmtCurrency(inv.grandTotal)}</Typography>
+                        {fmtCurrency(inv.grandTotal)}
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={inv.status}
                           size="small"
-                          onChange={(e) => handleStatusChange(inv.id, e.target.value)}
-                          sx={{ fontSize: 12, fontWeight: 600, minWidth: 110 }}
+                          value={inv.status}
+                          onChange={(e) =>
+                            handleStatusChange(inv.id, e.target.value)
+                          }
                         >
-                          <MenuItem value="unpaid">Unpaid</MenuItem>
                           <MenuItem value="paid">Paid</MenuItem>
-                          <MenuItem value="partial">Partial</MenuItem>
-                          <MenuItem value="cancelled">Cancelled</MenuItem>
+                          <MenuItem value="unpaid">Unpaid</MenuItem>
                         </Select>
                       </TableCell>
                       <TableCell align="center">
-                        <Stack direction="row" spacing={0.5} justifyContent="center">
-                          <Tooltip title="View">
-                            <IconButton size="small" onClick={() => navigate(`/invoices/${inv.id}`)}>
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit">
-                            <IconButton size="small" onClick={() => navigate(`/invoices/${inv.id}/edit`)}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(inv)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
+                        <IconButton onClick={() => navigate(`/invoices/${inv.id}`)}>
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton onClick={() => navigate(`/invoices/${inv.id}/edit`)}>
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton color="error" onClick={() => setDeleteTarget(inv)}>
+                          <DeleteIcon />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))
-                }
+                )}
               </TableBody>
             </Table>
           </TableContainer>
 
+          {/* ===== Mobile Cards ===== */}
+          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+            {loading ? (
+              [...Array(4)].map((_, i) => (
+                <Skeleton key={i} height={100} sx={{ mb: 1 }} />
+              ))
+            ) : invoices.map((inv) => (
+              <Card key={inv.id} sx={{ mb: 1.5, p: 1 }}>
+                <Typography fontWeight={700}>{inv.invoiceNumber}</Typography>
+                <Typography>{inv.client?.name}</Typography>
+                <Typography>{fmtDate(inv.invoiceDate)}</Typography>
+                <Typography fontWeight={700}>
+                  {fmtCurrency(inv.grandTotal)}
+                </Typography>
+
+                <Stack direction="row" spacing={1} mt={1}>
+                  <Button size="small" onClick={() => navigate(`/invoices/${inv.id}`)}>
+                    View
+                  </Button>
+                  <Button size="small" onClick={() => navigate(`/invoices/${inv.id}/edit`)}>
+                    Edit
+                  </Button>
+                  <Button size="small" color="error" onClick={() => setDeleteTarget(inv)}>
+                    Delete
+                  </Button>
+                </Stack>
+              </Card>
+            ))}
+          </Box>
+
+          {/* ===== Pagination ===== */}
           <TablePagination
             component="div"
             count={pagination.total || 0}
             page={page}
             onPageChange={(_, p) => setPage(p)}
             rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
-            rowsPerPageOptions={[10, 15, 25, 50]}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value));
+              setPage(0);
+            }}
           />
         </CardContent>
       </Card>
@@ -205,7 +269,7 @@ export default function InvoiceList() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete Invoice"
-        message={`Are you sure you want to delete invoice ${deleteTarget?.invoiceNumber}? This action cannot be undone.`}
+        message={`Delete invoice ${deleteTarget?.invoiceNumber}?`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
