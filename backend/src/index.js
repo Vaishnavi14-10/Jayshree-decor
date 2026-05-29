@@ -69,14 +69,47 @@ app.get("/api/health", (req, res) => {
 });
 
 // ─── Serve React Frontend (Production) ────────────────────────────────────────
-if (NODE_ENV === "production") {
-  const frontendBuild = path.join(__dirname, "../../../frontend/build");
-  app.use(express.static(frontendBuild));
-  app.get("*", (req, res, next) => {
-    if (req.originalUrl.startsWith("/api")) return next();
-    res.sendFile(path.join(frontendBuild, "index.html"));
+// if (NODE_ENV === "production") {
+//   const frontendBuild = path.join(__dirname, "../../../frontend/build");
+//   app.use(express.static(frontendBuild));
+//   app.get("*", (req, res, next) => {
+//     if (req.originalUrl.startsWith("/api")) return next();
+//     res.sendFile(path.join(frontendBuild, "index.html"));
 
-  });
+//   });
+// }
+
+// ─── Serve React Frontend (Production) ────────────────────────────────────────
+if (NODE_ENV === 'production') {
+  const fs = require('fs');
+
+  const possiblePaths = [
+    path.join(__dirname, '../../frontend/build'),          // local: backend/src → root/frontend/build
+    path.join(__dirname, '../../../frontend/build'),       // one more level up
+    path.join(process.cwd(), '../frontend/build'),         // cwd is backend/ → ../frontend/build
+    path.join(process.cwd(), 'frontend/build'),            // cwd is root/ → frontend/build
+    '/opt/render/project/src/frontend/build',              // Render absolute path
+  ];
+
+  let frontendBuild = null;
+  for (const p of possiblePaths) {
+    logger.info(`Checking: ${p} → exists: ${fs.existsSync(p)}`);
+    if (fs.existsSync(p)) {
+      frontendBuild = p;
+      break;
+    }
+  }
+
+  if (frontendBuild) {
+    logger.info(`✅ Serving frontend from: ${frontendBuild}`);
+    app.use(express.static(frontendBuild));
+    app.get('*', (req, res, next) => {
+      if (req.originalUrl.startsWith('/api')) return next();
+      res.sendFile(path.join(frontendBuild, 'index.html'));
+    });
+  } else {
+    logger.error('❌ Frontend build not found!');
+  }
 }
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
