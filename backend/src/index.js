@@ -70,12 +70,12 @@ app.get("/api/health", (req, res) => {
 
 // ─── Serve React Frontend (Production) ────────────────────────────────────────
 if (NODE_ENV === "production") {
-  const frontendBuild = path.join(__dirname, "../../../frontend/build");
+  const frontendBuild = path.join(__dirname, "../../../frontend/public");
   app.use(express.static(frontendBuild));
   app.get("*", (req, res, next) => {
     if (req.originalUrl.startsWith("/api")) return next();
     res.sendFile(path.join(frontendBuild, "index.html"));
-    
+
   });
 }
 
