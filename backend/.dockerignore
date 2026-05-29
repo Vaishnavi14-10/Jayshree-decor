@@ -5,4 +5,6 @@ Dockerfile
 .git
 .gitignore
 .env
-logs
+logs/
+log
+README.md
