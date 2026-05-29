@@ -75,6 +75,7 @@ if (NODE_ENV === "production") {
   app.get("*", (req, res, next) => {
     if (req.originalUrl.startsWith("/api")) return next();
     res.sendFile(path.join(frontendBuild, "index.html"));
+    
   });
 }
 
